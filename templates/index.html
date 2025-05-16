@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sudoku Solver</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+            border: 3px solid #333;
+        }
+        td {
+            position: relative;
+            width: 45px;
+            height: 45px;
+            border: 1px solid #999;
+            padding: 0;
+        }
+        /* Thicker borders for 3x3 grid sections */
+        tr:nth-child(3n) td {
+            border-bottom: 3px solid #333;
+        }
+        td:nth-child(3n) {
+            border-right: 3px solid #333;
+        }
+        /* First row/column borders */
+        tr:first-child td {
+            border-top: 3px solid #333;
+        }
+        td:first-child {
+            border-left: 3px solid #333;
+        }
+        input[type="text"] {
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            font-size: 20px;
+            border: none;
+            outline: none;
+            box-sizing: border-box;
+            background: transparent;
+            transition: background-color 0.3s;
+        }
+        /* Invalid input styling */
+        input.invalid {
+            color: #f44336;
+            background-color: #ffebee;
+            animation: shake 0.5s;
+        }
+        /* Selected cell styling */
+        input.selected {
+            background-color: #e3f2fd;
+        }
+        /* Highlight related cells */
+        td.highlight {
+            background-color: #f3f8ff;
+        }
+        /* New solution cells */
+        input.solution {
+            color: #1976d2;
+            font-weight: bold;
+        }
+        /* Highlight the current step */
+        input.current-step {
+            background-color: #e8f5e9;
+            transition: background-color 0.5s;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s;
+            width: 140px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #2196F3;
+        }
+        .btn-secondary:hover {
+            background-color: #1976D2;
+        }
+        .btn-reset {
+            background-color: #f44336;
+        }
+        .btn-reset:hover {
+            background-color: #d32f2f;
+        }
+        .btn-disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .message {
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 10px;
+            color: white;
+            background-color: #4CAF50;
+            border-radius: 5px;
+        }
+        .error-message {
+            background-color: #f44336;
+        }
+        .warning-message {
+            background-color: #ff9800;
+        }
+        
+        /* Animation for puzzle solved */
+        @keyframes solved {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        .solved {
+            animation: solved 0.8s;
+        }
+        
+        /* Animation for invalid input */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        
+        /* Controls for step-by-step visualization */
+        .controls {
+            margin: 15px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .controls button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #2196F3;
+            color: white;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #1976D2;
+        }
+        .controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+            margin-left: 10px;
+        }
+        .speed-control label {
+            margin-right: 5px;
+            font-size: 14px;
+        }
+        
+        /* Solution info panel */
+        .solution-info {
+            margin: 15px auto;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            text-align: left;
+            max-width: 400px;
+        }
+        .solution-counter {
+            font-weight: bold;
+        }
+        
+        /* Toggle switches */
+        .toggle-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #2196F3;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        .toggle-label {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="sudokuContainer">
+        <h1>Sudoku Solver</h1>
+        
+        {% if message %}
+            <div class="message {% if 'No solution' in message %}error-message{% endif %} {% if 'multiple' in message %}warning-message{% endif %}">{{ message }}</div>
+        {% endif %}
+        
+        <div class="toggle-container">
+            <div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="stepByStepToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">Step-by-Step Solving</span>
+            </div>
+            <div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="checkMultipleToggle" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">Check Multiple Solutions</span>
+            </div>
+        </div>
+        
+        <form method="POST" id="sudokuForm">
+            <table id="sudokuGrid">
+                {% for i in range(9) %}
+                <tr>
+                    {% for j in range(9) %}
+                    <td id="cell-{{ i }}-{{ j }}-td">
+                        <input type="text" 
+                               id="cell-{{ i }}-{{ j }}" 
+                               name="cell-{{ i }}-{{ j }}" 
+                               value="{{ board[i][j] if board[i][j] != 0 else '' }}" 
+                               maxlength="1"
+                               pattern="[1-9]"
+                               title="Enter a digit from 1-9"
+                               data-row="{{ i }}"
+                               data-col="{{ j }}"
+                               data-box="{{ (i//3)*3 + j//3 }}"
+                               {% if original_board and original_board[i][j] == 0 and board[i][j] != 0 %}
+                               class="solution"
+                               {% endif %}
+                               >
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+            
+            <div class="controls" id="stepControls" style="display: none;">
+                <button type="button" id="prevStepBtn" disabled>Previous</button>
+                <button type="button" id="nextStepBtn">Next Step</button>
+                <button type="button" id="playBtn">Play</button>
+                <button type="button" id="pauseBtn" style="display: none;">Pause</button>
+                <div class="speed-control">
+                    <label for="speedSlider">Speed:</label>
+                    <input type="range" id="speedSlider" min="1" max="10" value="5">
+                </div>
+            </div>
+            
+            <div id="solutionInfo" class="solution-info" style="display: none;">
+                <div>Step: <span id="currentStep">0</span> of <span id="totalSteps">0</span></div>
+                <div id="stepExplanation"></div>
+                <div id="multiSolutionInfo" style="display: none;">
+                    <div class="solution-counter">Solution: <span id="currentSolution">1</span> of <span id="totalSolutions">1</span></div>
+                    <button type="button" id="prevSolutionBtn" class="btn btn-secondary" disabled>Previous Solution</button>
+                    <button type="button" id="nextSolutionBtn" class="btn btn-secondary">Next Solution</button>
+                </div>
+            </div>
+            
+            <div>
+                <input type="submit" class="btn" value="Solve" id="solveBtn">
+                <input type="submit" name="play_again" class="btn btn-reset" value="Play Again">
+                <input type="hidden" name="step_by_step" id="stepByStepInput" value="0">
+                <input type="hidden" name="check_multiple" id="checkMultipleInput" value="1">
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input[type="text"]');
+            const cells = document.querySelectorAll('td');
+            const stepByStepToggle = document.getElementById('stepByStepToggle');
+            const checkMultipleToggle = document.getElementById('checkMultipleToggle');
+            const stepByStepInput = document.getElementById('stepByStepInput');
+            const checkMultipleInput = document.getElementById('checkMultipleInput');
+            const stepControls = document.getElementById('stepControls');
+            const solutionInfo = document.getElementById('solutionInfo');
+            
+            // Set initial values from server if available
+            stepByStepToggle.checked = {{ step_by_step|default(0) }} === 1;
+            checkMultipleToggle.checked = {{ check_multiple|default(1) }} === 1;
+            
+            // Update hidden inputs when toggles change
+            stepByStepToggle.addEventListener('change', function() {
+                stepByStepInput.value = this.checked ? "1" : "0";
+                stepControls.style.display = this.checked ? "flex" : "none";
+            });
+            
+            checkMultipleToggle.addEventListener('change', function() {
+                checkMultipleInput.value = this.checked ? "1" : "0";
+            });
+            
+            // Initialize step-by-step controls if enabled
+            if (stepByStepToggle.checked) {
+                stepControls.style.display = "flex";
+                solutionInfo.style.display = "block";
+                
+                // Setup the step-by-step visualization if solution steps are available
+                {% if solution_steps %}
+                    const solutionSteps = {{ solution_steps|tojson }};
+                    let currentStepIndex = 0;
+                    const totalSteps = solutionSteps.length;
+                    
+                    document.getElementById('totalSteps').textContent = totalSteps;
+                    
+                    // Initialize the grid with original values
+                    const originalValues = {};
+                    inputs.forEach(input => {
+                        const value = input.value;
+                        if (value) {
+                            const id = input.id;
+                            originalValues[id] = value;
+                        }
+                    });
+                    
+                    // Clear solution cells
+                    inputs.forEach(input => {
+                        if (input.classList.contains('solution')) {
+                            input.value = '';
+                            input.classList.remove('solution');
+                        }
+                    });
+                    
+                    // Setup control buttons
+                    const prevStepBtn = document.getElementById('prevStepBtn');
+                    const nextStepBtn = document.getElementById('nextStepBtn');
+                    const playBtn = document.getElementById('playBtn');
+                    const pauseBtn = document.getElementById('pauseBtn');
+                    const speedSlider = document.getElementById('speedSlider');
+                    const currentStepDisplay = document.getElementById('currentStep');
+                    const stepExplanation = document.getElementById('stepExplanation');
+                    
+                    let isPlaying = false;
+                    let playInterval;
+                    
+                    function showStep(index) {
+                        // Clear previous highlights
+                        inputs.forEach(input => input.classList.remove('current-step'));
+                        
+                        if (index < 0 || index >= solutionSteps.length) return;
+                        
+                        currentStepIndex = index;
+                        currentStepDisplay.textContent = index + 1;
+                        
+                        const step = solutionSteps[index];
+                        const cell = document.getElementById(`cell-${step.row}-${step.col}`);
+                        cell.value = step.value;
+                        cell.classList.add('solution');
+                        cell.classList.add('current-step');
+                        
+                        stepExplanation.textContent = `Placed ${step.value} at row ${step.row + 1}, column ${step.col + 1}`;
+                        
+                        // Update button states
+                        prevStepBtn.disabled = currentStepIndex <= 0;
+                        nextStepBtn.disabled = currentStepIndex >= totalSteps - 1;
+                        
+                        if (currentStepIndex >= totalSteps - 1 && isPlaying) {
+                            pausePlayback();
+                        }
+                    }
+                    
+                    function prevStep() {
+                        if (currentStepIndex > 0) {
+                            // Clear the current cell
+                            const currentStep = solutionSteps[currentStepIndex];
+                            const currentCell = document.getElementById(`cell-${currentStep.row}-${currentStep.col}`);
+                            currentCell.value = '';
+                            currentCell.classList.remove('solution');
+                            
+                            showStep(currentStepIndex - 1);
+                        }
+                    }
+                    
+                    function nextStep() {
+                        if (currentStepIndex < totalSteps - 1) {
+                            showStep(currentStepIndex + 1);
+                        }
+                    }
+                    
+                    function startPlayback() {
+                        isPlaying = true;
+                        playBtn.style.display = 'none';
+                        pauseBtn.style.display = 'inline-block';
+                        
+                        const speed = 1100 - (speedSlider.value * 100); // 100ms to 1000ms
+                        playInterval = setInterval(() => {
+                            if (currentStepIndex < totalSteps - 1) {
+                                nextStep();
+                            } else {
+                                pausePlayback();
+                            }
+                        }, speed);
+                    }
+                    
+                    function pausePlayback() {
+                        isPlaying = false;
+                        playBtn.style.display = 'inline-block';
+                        pauseBtn.style.display = 'none';
+                        clearInterval(playInterval);
+                    }
+                    
+                    // Attach event listeners
+                    prevStepBtn.addEventListener('click', prevStep);
+                    nextStepBtn.addEventListener('click', nextStep);
+                    playBtn.addEventListener('click', startPlayback);
+                    pauseBtn.addEventListener('click', pausePlayback);
+                    speedSlider.addEventListener('input', function() {
+                        if (isPlaying) {
+                            pausePlayback();
+                            startPlayback();
+                        }
+                    });
+                    
+                    // Setup multiple solutions if available
+                    {% if multiple_solutions %}
+                        const solutions = {{ multiple_solutions|tojson }};
+                        let currentSolutionIndex = 0;
+                        
+                        document.getElementById('multiSolutionInfo').style.display = 'block';
+                        document.getElementById('totalSolutions').textContent = solutions.length;
+                        
+                        const prevSolutionBtn = document.getElementById('prevSolutionBtn');
+                        const nextSolutionBtn = document.getElementById('nextSolutionBtn');
+                        
+                        function showSolution(index) {
+                            if (index < 0 || index >= solutions.length) return;
+                            
+                            currentSolutionIndex = index;
+                            document.getElementById('currentSolution').textContent = index + 1;
+                            
+                            // Reset step index
+                            currentStepIndex = -1;
+                            
+                            // Clear all solution cells
+                            inputs.forEach(input => {
+                                if (!originalValues[input.id]) {
+                                    input.value = '';
+                                    input.classList.remove('solution');
+                                    input.classList.remove('current-step');
+                                }
+                            });
+                            
+                            // Update steps for this solution
+                            const solutionSteps = solutions[index].steps;
+                            document.getElementById('totalSteps').textContent = solutionSteps.length;
+                            
+                            // Show first step
+                            nextStep();
+                            
+                            // Update button states
+                            prevSolutionBtn.disabled = currentSolutionIndex <= 0;
+                            nextSolutionBtn.disabled = currentSolutionIndex >= solutions.length - 1;
+                        }
+                        
+                        prevSolutionBtn.addEventListener('click', function() {
+                            if (currentSolutionIndex > 0) {
+                                showSolution(currentSolutionIndex - 1);
+                            }
+                        });
+                        
+                        nextSolutionBtn.addEventListener('click', function() {
+                            if (currentSolutionIndex < solutions.length - 1) {
+                                showSolution(currentSolutionIndex + 1);
+                            }
+                        });
+                        
+                        // Initialize with first solution
+                        showSolution(0);
+                    {% else %}
+                        // No multiple solutions, just show steps
+                        showStep(0);
+                    {% endif %}
+                {% endif %}
+            }
+            
+            // Flag to track if the puzzle was just solved
+            let justSolved = {{ 1 if message and 'Solved' in message else 0 }};
+            
+            // If puzzle was just solved, add animation
+            if (justSolved) {
+                document.getElementById('sudokuGrid').classList.add('solved');
+            }
+            
+            // Add event listeners to all inputs
+            inputs.forEach(input => {
+                // Validate input to allow only numbers 1-9
+                input.addEventListener('input', function(e) {
+                    const value = e.target.value;
+                    if (value !== '' && (!/^[1-9]$/.test(value))) {
+                        e.target.classList.add('invalid');
+                        e.target.value = value.replace(/[^1-9]/g, '');
+                        // Remove invalid class after animation completes
+                        setTimeout(() => {
+                            e.target.classList.remove('invalid');
+                        }, 500);
+                    } else {
+                        validateSudokuValue(input);
+                    }
+                });
+                
+                // Handle focus to highlight row, column and box
+                input.addEventListener('focus', function(e) {
+                    // Remove previous highlights
+                    inputs.forEach(inp => inp.classList.remove('selected'));
+                    cells.forEach(cell => cell.classList.remove('highlight'));
+                    
+                    // Add selection to current cell
+                    e.target.classList.add('selected');
+                    
+                    // Get coordinates
+                    const row = e.target.getAttribute('data-row');
+                    const col = e.target.getAttribute('data-col');
+                    const box = e.target.getAttribute('data-box');
+                    
+                    // Highlight related cells
+                    inputs.forEach(inp => {
+                        if (inp.getAttribute('data-row') === row || 
+                            inp.getAttribute('data-col') === col || 
+                            inp.getAttribute('data-box') === box) {
+                            inp.parentElement.classList.add('highlight');
+                        }
+                    });
+                });
+            });
+            
+            // Function to validate sudoku values
+            function validateSudokuValue(input) {
+                const value = input.value;
+                if (value === '') return;
+                
+                const row = input.getAttribute('data-row');
+                const col = input.getAttribute('data-col');
+                const box = input.getAttribute('data-box');
+                
+                let invalid = false;
+                
+                // Check row, column and box for duplicates
+                inputs.forEach(inp => {
+                    if (inp !== input && inp.value === value) {
+                        if (inp.getAttribute('data-row') === row || 
+                            inp.getAttribute('data-col') === col || 
+                            inp.getAttribute('data-box') === box) {
+                            invalid = true;
+                        }
+                    }
+                });
+                
+                if (invalid) {
+                    input.classList.add('invalid');
+                } else {
+                    input.classList.remove('invalid');
+                }
+            }
+            
+            // Add form submit validation
+            document.getElementById('sudokuForm').addEventListener('submit', function(e) {
+                if (e.submitter && e.submitter.name === 'play_again') {
+                    return true; // Allow form submission for Play Again
+                }
+                
+                // Check for invalid inputs before solving
+                const invalidInputs = document.querySelectorAll('input.invalid');
+                if (invalidInputs.length > 0) {
+                    e.preventDefault();
+                    alert('Please fix invalid inputs before solving.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
